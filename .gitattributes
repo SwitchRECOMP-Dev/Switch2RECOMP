@@ -1,0 +1,9 @@
+runtime/edenvk/** linguist-vendored
+runtime/nvn/vk/third_party/** linguist-vendored
+runtime/spvc/** linguist-vendored
+runtime/oh264/** linguist-vendored
+runtime/opus/** linguist-vendored
+runtime/vp9/** linguist-vendored
+runtime/bcn/** linguist-vendored
+tools/nxshader/xlate_bin/** linguist-vendored
+tool/audio_decode/** linguist-vendored
