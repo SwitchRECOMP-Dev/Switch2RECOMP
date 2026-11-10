@@ -31,8 +31,8 @@ Pass when:
   `__pycache__`;
 - every new source file starts with the MZ Labs header and `CHANGELOG.txt` has a line for the change.
 
-The runtime prints the version `0.4.0` in the first line of every game log. A build that says anything else
-(`0.4.0-something`) is not a release build.
+The runtime prints the version `0.4.1` in the first line of every game log. A build that says anything else
+(`0.4.1-something`) is not a release build.
 
 ## Level 1: unit tests
 
@@ -145,7 +145,7 @@ Intel's Windows driver is where most freezes come from (driver exclusive mode, t
 ## Report template
 
 ```
-Runtime: 0.4.0, built <date>, from <what changed>
+Runtime: 0.4.1, built <date>, from <what changed>
 Level 0: builds OK / packages OK (zip X MB, tar.gz Y MB)
 Level 1: N PASS / failures: ...
 Level 2: N same, M different: <test>: <pixels>, <cause or "known noise">

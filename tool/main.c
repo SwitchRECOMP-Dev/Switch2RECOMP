@@ -1885,7 +1885,7 @@ int main(int argc, char **argv)
 #endif
         return 1;
     }
-    SDL_Window *win = SDL_CreateWindow("Switch2Recomp 0.4.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, SDL_WINDOW_RESIZABLE);
+    SDL_Window *win = SDL_CreateWindow("Switch2Recomp 0.4.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, SDL_WINDOW_RESIZABLE);
     SDL_Renderer *ren = win ? SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC) : NULL;
     if (!ren && win) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);
     char fonts[MAX_PATH];

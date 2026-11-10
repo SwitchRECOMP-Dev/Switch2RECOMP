@@ -6,7 +6,7 @@ that C into a native module, and a C runtime emulates Horizon OS (kernel, IPC, s
 and the bugs that are still open.
 
 Rules of the project:
-- The version is **0.4.0** (major.fix.sub: fix 40 is 0.4.0, 0.4.1 a sub-release) (`SWR_RUNTIME_VERSION` in `runtime/main.c`). Changes go in `CHANGELOG.txt`,
+- The version is **0.4.1** (major.fix.sub: fix 40 is 0.4.0, 0.4.1 a sub-release) (`SWR_RUNTIME_VERSION` in `runtime/main.c`). Changes go in `CHANGELOG.txt`,
   in English.
 - No code from GPL-2.0-only or other incompatible projects. yuzu, Eden and similar emulators may be read to understand
   hardware behavior, but their code is not copied.

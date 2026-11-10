@@ -1,3 +1,9 @@
+Switch2Recomp 0.4.1 - MZ Labs
+
+- Install.bat and Install.sh work again: the release builds were missing the tool folder (get_deps.py).
+- A newer Mario Kart World version passed a NULL device to NvRmGpuDeviceChooseKind on its first GPU memory
+  allocation and crashed at boot. The runtime gives it the GPU device it made at startup.
+
 Switch2Recomp 0.4.0 - MZ Labs
 
 Versions are major.fix.sub: fix 40 is 0.4.0, a sub-release of it 0.4.1.

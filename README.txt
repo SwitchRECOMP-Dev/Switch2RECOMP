@@ -1,4 +1,4 @@
-Switch2Recomp 0.4.0
+Switch2Recomp 0.4.1
 See CHANGELOG.txt for how to install and the music settings.
 
 SwitchRecomp - static recompiler for Nintendo Switch games (ARM64 -> C -> native)

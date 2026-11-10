@@ -635,6 +635,10 @@ static void hle_nvrm_trace(CPU* RESTRICT c, u64 entry){
     else LOG("nvrm:   no NvRmMem handle covers that pool (%d handles known)\n",g_nnmh); }
   if(g_nt[k].n<cap && ++g_nt[k].n) LOG("nvrm: %s(%llx, %llx, %llx, %llx) lr %llx\n",g_nt[k].nm,(unsigned long long)a0,(unsigned long long)a1,(unsigned long long)a2,(unsigned long long)a3,(unsigned long long)c->x[30]);
   if(!strcmp(g_nt[k].nm,"NvRmGpuDeviceOpen")) g_nvrm_pend=a3;
+  /* some game versions (a newer Mario Kart World) pass a NULL device to NvRmGpuDeviceChooseKind on their first GPU
+     memory allocation and the SDK reads through it. The device NvRmGpuDeviceOpen made is the only one there is */
+  { static u64 dev; if(!strcmp(g_nt[k].nm,"NvRmGpuDeviceChooseKind") && !a0 && dev){ static int nl; if(nl++<3) LOG("nvrm: NvRmGpuDeviceChooseKind with no device: using %llx\n",(unsigned long long)dev); c->x[0]=a0=dev; }
+    if(!strcmp(g_nt[k].nm,"NvRmGpuDeviceGetInfo") && a0>=0x10000 && !dev) dev=a0; }
   if(strstr(g_nt[k].nm,"SetPreemptionModes") && a0>=0x10000) LOG("nvrm:   target %llx\n",(unsigned long long)gr64(gr64(a0)+80));
   if(!strcmp(g_nt[k].nm,"NvOsDrvIoctl") && (u32)a1==0xc0184102 && a2>=0x10000) LOG("nvrm:   alloc_space {pages %x, page size %x, flags %x, offset %llx}\n",gr32(a2),gr32(a2+4),gr32(a2+8),(unsigned long long)gr64(a2+16));
   u64 lr=c->x[30]; int show=g_nt[k].n<=cap;
@@ -687,7 +691,7 @@ void hle_install(void){
     if(heap_fn_wanted(nm) && !getenv("SWR_NO_HEAP_LOCK") && a>=g_code_lo && a<g_code_hi && !(a&3) && g_nhl<HL_MAX){
       GuestFn* d=&g_disp[(a-g_code_lo)/4]; if(*d && *d!=hle_heap_locked){ if(!g_nhl) pm_init(&g_hl_m); g_hl[g_nhl].a=a; g_hl[g_nhl].f=*d; g_nhl++; *d=hle_heap_locked; }
       continue; }
-    if((!strcmp(nm,"NvRmGpuLibOpen") || !strcmp(nm,"NvRmGpuDeviceOpen") || !strcmp(nm,"NvRmGpuLibListDevices") || !strcmp(nm,"NvRmGpuDeviceGetInfo") || !strcmp(nm,"NvRmGpuAddressSpaceCreate") || !strcmp(nm,"NvRmGpuAddressSpaceAllocationCreate") || !strcmp(nm,"NvRmGpuDeviceAllocateMemory") || (nvrm_trace_on() && (!strncmp(nm,"NvOsDrv",7) || !strncmp(nm,"NvRmGpu",7) || !strncmp(nm,"NvRmMem",7) || !strncmp(nm,"_ZN2nn2gs8external",18) || !strncmp(nm,"_ZN2nn3gpu3sdk",14) || !strncmp(nm,"_ZN2nn3wsi",10) || !strcmp(nm,"_ZN2nn2fs8OpenFileEPNS0_10FileHandleEPKci") || !strcmp(nm,"_ZN2nn2fs12GetEntryTypeEPNS0_18DirectoryEntryTypeEPKc") || !strcmp(nm,"_ZN2nn2fs13OpenDirectoryEPNS0_15DirectoryHandleEPKci")))) && a>=g_code_lo && a<g_code_hi && !(a&3) && g_nnt<NT_MAX){
+    if((!strcmp(nm,"NvRmGpuLibOpen") || !strcmp(nm,"NvRmGpuDeviceOpen") || !strcmp(nm,"NvRmGpuDeviceChooseKind") || !strcmp(nm,"NvRmGpuLibListDevices") || !strcmp(nm,"NvRmGpuDeviceGetInfo") || !strcmp(nm,"NvRmGpuAddressSpaceCreate") || !strcmp(nm,"NvRmGpuAddressSpaceAllocationCreate") || !strcmp(nm,"NvRmGpuDeviceAllocateMemory") || (nvrm_trace_on() && (!strncmp(nm,"NvOsDrv",7) || !strncmp(nm,"NvRmGpu",7) || !strncmp(nm,"NvRmMem",7) || !strncmp(nm,"_ZN2nn2gs8external",18) || !strncmp(nm,"_ZN2nn3gpu3sdk",14) || !strncmp(nm,"_ZN2nn3wsi",10) || !strcmp(nm,"_ZN2nn2fs8OpenFileEPNS0_10FileHandleEPKci") || !strcmp(nm,"_ZN2nn2fs12GetEntryTypeEPNS0_18DirectoryEntryTypeEPKc") || !strcmp(nm,"_ZN2nn2fs13OpenDirectoryEPNS0_15DirectoryHandleEPKci")))) && a>=g_code_lo && a<g_code_hi && !(a&3) && g_nnt<NT_MAX){
       GuestFn* d=&g_disp[(a-g_code_lo)/4]; if(*d && *d!=hle_nvrm_trace){ g_nt[g_nnt].a=a; g_nt[g_nnt].f=*d; g_nt[g_nnt].nm=nm; g_nnt++; *d=hle_nvrm_trace; }
       continue; }
     if(strncmp(nm,"_ZN2nn3hid",10) || !strstr(nm,"ShowController")) continue;
