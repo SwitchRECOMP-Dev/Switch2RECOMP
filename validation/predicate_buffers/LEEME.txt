@@ -1,0 +1,6 @@
+Cambios: predicados uniformes guardados en registros, UP2UR y condiciones distintas de entrada/salida, incluyendo salidas que deben conservarse cuando la condicion es falsa. 4608 casos GPU correctos. Shader ad95382020afd771: de 63 instrucciones sin traducir a cero.
+Los operandos que suman directamente una base de buffer desde c0 mantienen ahora su seguimiento. 192 lecturas de color correctas.
+Se compilaron 124 fragment shaders de la captura con Mesa. Esto no equivale a traducir todo: 4407397eb90d192e conserva dos FSWZADD sin soporte completo. Hay tareas/mesh y operaciones de grupo que siguen pendientes.
+Builds Windows Win32 y Linux X11 correctos. Pasan todas las regresiones incluidas. Headless conserva el problema previo g_opt_show_rt sin definir. GUI sin cambios.
+Eglantine se compilo como referencia de traduccion para el analisis. No se incluyen su codigo, su ejecutable ni shaders extraidos del juego. Las fuentes del runtime mantienen C y su estilo.
+No se ha verificado que esta version quite todo el morado, ilumine correctamente todos los modelos o mantenga los FPS del juego. No se ejecuto el juego completo localmente.

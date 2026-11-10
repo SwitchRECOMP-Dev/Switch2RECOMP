@@ -1,0 +1,40 @@
+#version 440 core
+layout(std430, binding=16) readonly buffer S5_G0 { uint d[]; } g0;
+layout(local_size_x=32, local_size_y=1, local_size_z=1) in;
+layout(std430, binding=44) buffer SWR_PAY { uint d[]; } swr_pay;
+layout(location=300) uniform ivec4 swr_mesh;
+layout(std430, binding=45) writeonly buffer SWR_MV { uint d[]; } swr_mv;
+layout(std430, binding=46) writeonly buffer SWR_MI { uint d[]; } swr_mi;
+shared uint isbe_a[896];
+shared uint isbe_m[382];
+shared uint isbe_n;
+uint swr_isbe_rd(uint a){ return a==0u? gl_WorkGroupID.x : (swr_mesh.z!=0? 0u : swr_pay.d[gl_WorkGroupID.y*32u + min(a>>2u, 31u)]); }
+layout(std140, binding=36) uniform S5_CB0 { vec4 d[4096]; } cb0;
+layout(std140, binding=39) uniform S5_CB3 { vec4 d[4096]; } cb3;
+layout(std140, binding=40) uniform S5_CB4 { vec4 d[4096]; } cb4;
+layout(std140, binding=41) uniform S5_CB5 { vec4 d[4096]; } cb5;
+void swr_body(){
+  uint l=gl_LocalInvocationIndex;
+  if(l<3u){ float x= l==0u? -0.5 : l==1u? 0.5 : 0.0, y= l==2u? 0.5 : -0.5;
+    uint base=0u;
+    isbe_a[(base + 0u + l*4u)>>2u]=floatBitsToUint(x); isbe_a[(base + 128u + l*4u)>>2u]=floatBitsToUint(y);
+    isbe_a[(base + 256u + l*4u)>>2u]=floatBitsToUint(0.0); isbe_a[(base + 384u + l*4u)>>2u]=floatBitsToUint(1.0);
+    isbe_a[(base + 512u + l*4u)>>2u]=floatBitsToUint(1.0); isbe_a[(base + 640u + l*4u)>>2u]=floatBitsToUint(0.25); }
+  if(l==0u){ isbe_n=1u; isbe_m[4]=0u; isbe_m[5]=1u; isbe_m[6]=2u; }
+}
+void main(){
+  uint cap=uint(swr_mesh.x), ms=gl_WorkGroupID.y*cap + gl_WorkGroupID.x, lid=gl_LocalInvocationIndex, nt=gl_WorkGroupSize.x*gl_WorkGroupSize.y*gl_WorkGroupSize.z;
+  if(swr_mesh.z==0 && gl_WorkGroupID.x >= min(swr_pay.d[gl_WorkGroupID.y*32u + 1u], cap)){   /* slot the task didn't ask for: nothing drawn */
+    for(uint p=lid; p<126u; p+=nt){ uint o=(ms*126u + p)*3u; swr_mi.d[o]=0u; swr_mi.d[o+1u]=0u; swr_mi.d[o+2u]=0u; } return; }
+  if(lid==0u) isbe_n=0u;
+  barrier();
+  swr_body();
+  memoryBarrierShared();
+  barrier();
+  for(uint v=lid; v<64u; v+=nt){ uint s=(v>>5u)*192u + (v&31u), o=(ms*64u + v)*6u; for(uint l=0u; l<6u; l++) swr_mv.d[o+l]=isbe_a[s + l*32u]; }
+  uint cnt=min(isbe_n, 126u), base=ms*64u;
+  for(uint p=lid; p<126u; p+=nt){ uint o=(ms*126u + p)*3u;
+    if(p<cnt){ for(uint e=0u; e<3u; e++) swr_mi.d[o+e]=base + min(isbe_m[4u + 3u*p + e], 63u); }
+    else { swr_mi.d[o]=base; swr_mi.d[o+1u]=base; swr_mi.d[o+2u]=base; } }
+}
+

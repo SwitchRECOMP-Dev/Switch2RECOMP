@@ -1,0 +1,19 @@
+#!/bin/sh
+# SwitchRecomp for linux: starts the tool (SwitchRecomp.bin). the first time it gets what's missing with Install.sh
+# (SDL2 when the system doesn't have it); GCC comes later, the first time you recompile a game
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+has_sdl() {
+  [ -f lib/libSDL2_ttf-2.0.so.0 ] && return 0
+  ldconfig -p 2>/dev/null | grep -q 'libSDL2-2.0.so.0' && ldconfig -p 2>/dev/null | grep -q 'libSDL2_ttf-2.0.so.0' &&
+    ldconfig -p 2>/dev/null | grep -q 'libSDL2_image-2.0.so.0'
+}
+if ! has_sdl; then
+  export SWR_IN_TERMINAL=1 SWR_NO_PAUSE=1
+  if [ -t 1 ]; then sh ./Install.sh sdl
+  elif command -v zenity >/dev/null 2>&1; then
+    sh ./Install.sh sdl 2>&1 | tee install.log | zenity --progress --pulsate --auto-close --no-cancel --title=SwitchRecomp \
+      --text="Downloading SDL2 (only the first time)..." 2>/dev/null
+  else sh ./Install.sh sdl >install.log 2>&1
+  fi
+fi
+exec ./SwitchRecomp.bin "$@"

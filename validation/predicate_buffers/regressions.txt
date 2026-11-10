@@ -1,0 +1,36 @@
+spilled uniform predicate LUT: 0/4608 wrong results, GL 0
+0 untranslated, 1 storage buffers, base c0[0x670]
+0/64 wrong color-buffer reads, GL error 0
+0 untranslated, 1 storage buffers, base c0[0x670]
+0/64 wrong color-buffer reads, GL error 0
+0 untranslated, 1 storage buffers, base c0[0x670]
+0/64 wrong color-buffer reads, GL error 0
+PASS compute texture banks 0..7 preserved
+LEA.HI: 0/16384 wrong results (register/cbuf, +/- offset, all scales, carry and RZ)
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+0/64 wrong shader results
+FMUL scaling: 0/5376 wrong results (7 scales, register/immediate/cbuf, sign and saturation), GL error 0
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+0/64 wrong shared-memory reads
+TEX explicit LOD: 0/17920 wrong channels, 5 texture types, LZ/LL, 7 levels, GL error 0
+raw 96032 lowered 256032 kept 256032 unsupported 0
+PASS expanded shader tail retained
+raw 96032 lowered 64032 kept 64032 unsupported 0
+0/64 wrong shader results
+gpu: render target 8112571000 read through a snapshot while drawing into it (4x4)
+gpu: render target 8112571000 read through a snapshot while drawing into it (4x4)
+PASS feedback snapshot: original pixels preserved, next draw refreshed, GL error 0
