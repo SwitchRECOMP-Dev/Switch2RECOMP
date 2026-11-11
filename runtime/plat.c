@@ -594,7 +594,7 @@ void plat_message(const char* text, int error, int wait){
   char* k[]={"kdialog","--title","SwitchRecomp",error? "--error" : "--msgbox",(char*)text,NULL};
   pid_t pid;
   if(posix_spawnp(&pid,z[0],NULL,NULL,z,environ) && posix_spawnp(&pid,k[0],NULL,NULL,k,environ)) return;
-  if(wait) reap((void*)(size_t)pid); else plat_thread(reap,(void*)(size_t)pid,1<<16); }
+  if(wait) reap((void*)(size_t)pid); else plat_thread(reap,(void*)(size_t)pid,1u<<20); }
 
 void plat_install_crash_handler(void){
   struct sigaction sa; memset(&sa,0,sizeof sa); sa.sa_sigaction=sighandler; sa.sa_flags=SA_SIGINFO|SA_ONSTACK;
