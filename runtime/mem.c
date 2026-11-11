@@ -16,6 +16,10 @@ void mem_layout_36bit(void){ g_as36=1; g_alias_size=0xA00000000ull; g_stack_base
 static MemBlock* blk; static int nblk, capblk;
 static PMutex g_memlock;
 
+int guest_range_valid(u64 addr, u64 size){
+  return addr<=AS_SIZE && size<=AS_SIZE-addr;
+}
+
 int g_identity_mem;   /* guest address == host address (renderer=vulkan, plat_identity_early): g_mem stays 0 */
 static void ins_at(int i, MemBlock b);
 void mem_init(void){
@@ -96,6 +100,34 @@ void mem_query(u64 a, MemBlock* o){
   if(lo<AS_BASE) lo=AS_BASE;
   o->addr=lo; o->size=hi-lo; o->state=MS_FREE; o->perm=0; o->attr=o->ipc=o->dev=0;
   pm_unlock(&g_memlock); }
+
+static int guest_span_has_perm(u64 addr, u64 size, u64 alignment, u32 required_perm){
+  if(!alignment) alignment=1;
+  if((alignment & (alignment-1)) || (addr & (alignment-1))) return 0;
+  if(!guest_range_valid(addr,size)) return 0;
+  if(!size) return 1;
+  u64 cur=addr, remaining=size;
+  while(remaining){
+    MemBlock b; mem_query(cur,&b);
+    if(b.state==MS_FREE || b.state==MS_INACCESSIBLE || (b.perm&required_perm)!=required_perm) return 0;
+    if(cur<b.addr || b.addr>AS_SIZE || b.size>AS_SIZE-b.addr) return 0;
+    u64 end=b.addr+b.size;
+    if(end<=cur) return 0;
+    u64 covered=end-cur;
+    if(covered>remaining) covered=remaining;
+    cur+=covered;
+    remaining-=covered;
+  }
+  return 1;
+}
+
+int guest_span_readable(u64 addr, u64 size, u64 alignment){
+  return guest_span_has_perm(addr,size,alignment,PERM_R);
+}
+
+int guest_span_writable(u64 addr, u64 size, u64 alignment){
+  return guest_span_has_perm(addr,size,alignment,PERM_W);
+}
 
 u64 mem_find_free(u64 lo, u64 hi, u64 size, u64 align){
   if(!align) align=0x1000;
