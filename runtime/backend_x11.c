@@ -31,14 +31,7 @@ void backend_ini(const char* k, const char* v){
   else if(!strcmp(k,"press_at")) g_press_at=strtoull(v,NULL,10);
   else if(!strcmp(k,"press_len")) g_press_len=strtoull(v,NULL,10);
   else if(!strcmp(k,"script")) strncpy(g_script,v,8191);
-  else if(!strcmp(k,"renderer")){   /* opengl (default), vulkan (the NVN layer, runtime/nvn) or eden (edenvk.h) */
-    int nv= !strcmp(v,"vulkan");
-#ifdef SWR_HAVE_NVN
-    if(nv && !getenv("SWR_GPU")){ setenv("SWR_GPU","nvn",1); if(!getenv("NXRT_GFX")) setenv("NXRT_GFX","vulkan",1); }
-#else
-    if(nv) v="eden";
-#endif
-    extern int g_edenvk_want; g_edenvk_want= !strcmp(v,"eden"); }
+  else if(!strcmp(k,"renderer")){ extern int g_edenvk_want; g_edenvk_want= !strcmp(v,"vulkan"); }   /* opengl (default) or vulkan (edenvk.h) */
 }
 
 /* renderer=vulkan: what the Vulkan surface is made from (1 = Xlib) */
@@ -143,7 +136,6 @@ void video_init(const char* title){
   XMapWindow(dpy,win); XFlush(dpy);
   sdl_load();
   g_start=plat_ns();
-  { extern int g_gpu_nvn; if(g_gpu_nvn) return; }   /* renderer=vulkan: the NVN layer draws on this window, no OpenGL */
   extern void gpu_gl_start(void); gpu_gl_start();
 }
 
@@ -235,7 +227,7 @@ void video_poll(void){
     if(e.type==KeyPress) key_down(&e.xkey);
     else if(e.type==KeyRelease){ KeySym k=XLookupKeysym(&e.xkey,0); key_once(k,0); keys_held&=~keymap(k); }
     else if(e.type==FocusOut) keys_held=0;
-    else if(e.type==ConfigureNotify){ g_ww=e.xconfigure.width>0? e.xconfigure.width : 1; g_wh=e.xconfigure.height>0? e.xconfigure.height : 1; { extern void nvn_window_resized(int,int); nvn_window_resized(g_ww,g_wh); } }
+    else if(e.type==ConfigureNotify){ g_ww=e.xconfigure.width>0? e.xconfigure.width : 1; g_wh=e.xconfigure.height>0? e.xconfigure.height : 1; }
     else if(e.type==ClientMessage && (Atom)e.xclient.data.l[0]==wm_delete){ LOG("window: closed by the user\n"); g_quit=1; } }
   u64 k=keys_held, b=k&0xFFFFull;
   i32 lx=axis(k,40,42), ly=axis(k,43,41), rx=axis(k,44,46), ry=axis(k,47,45);

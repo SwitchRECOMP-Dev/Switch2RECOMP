@@ -17,7 +17,7 @@ static PMutex g_gpulock;
 extern volatile int g_cs_any; void cs_mem_need(u64 a, u64 n);
 
 int gmem_read(u64 gva, void* dst, u64 size){
-  u8* d=dst; if(g_cs_any) cs_mem_need(gva,size);
+  u8* d=dst; if(size && !guest_span_readable(gva,size,1)) return -1; if(g_cs_any) cs_mem_need(gva,size);
   while(size){ u64 cpu=gmmu_translate(gva); u64 n=0x1000-(gva&0xFFF); if(n>size) n=size;
     if(!cpu){ memset(d,0,n); } else memcpy(d,GP(cpu),n);
     d+=n; gva+=n; size-=n; }
@@ -26,6 +26,7 @@ int gmem_read(u64 gva, void* dst, u64 size){
 void (*g_ww_touch)(u64 cpu);   /* GPU wrote guest memory, record it for write tracking */
 int gmem_write(u64 gva, const void* src, u64 size){
   const u8* s=src; u64 g0=gva, s0=size;
+  if(size && !guest_span_writable(gva,size,1)) return -1;
   while(size){ u64 cpu=gmmu_translate(gva); u64 n=0x1000-(gva&0xFFF); if(n>size) n=size;
     if(cpu){ memcpy(GP(cpu),s,n); if(g_ww_touch) g_ww_touch(cpu); } s+=n; gva+=n; size-=n; }
   gpu_mem_written(g0,s0);
@@ -33,6 +34,7 @@ int gmem_write(u64 gva, const void* src, u64 size){
 
 u8* gmem_ptr(u64 gva, u64 size){
   /* host pointer, only if the whole range is contiguous */
+  if(size && !guest_span_readable(gva,size,1)) return NULL;
   if(g_cs_any) cs_mem_need(gva,size);
   u64 c0=gmmu_translate(gva); if(!c0) return NULL;
   for(u64 o=(0x1000-(gva&0xFFF));o<size;o+=0x1000){ if(gmmu_translate(gva+o)!=c0+o) return NULL; }
@@ -46,8 +48,9 @@ void gmem_w64(u64 gva, u64 v){ gmem_write(gva,&v,8); }
 
 /* ============================================================ block linear */
 u64 bl_offset(u32 x_bytes, u32 y, u32 z, u32 width_bytes, u32 height, u32 bh_log2, u32 bd_log2){
-  u32 gob_w=(width_bytes+63)/64; u32 bh=1u<<bh_log2, bd=1u<<bd_log2;
-  u32 blocks_h=((height+7)/8+bh-1)/bh;
+  if(bh_log2>=31 || bd_log2>=31 || x_bytes>=width_bytes || y>=height) return ~0ull;
+  u64 gob_w=((u64)width_bytes+63)/64; u64 bh=1ull<<bh_log2, bd=1ull<<bd_log2;
+  u64 blocks_h=(((u64)height+7)/8+bh-1)/bh;
   u32 gx=x_bytes/64, gy=y/8;
   u32 block_y=gy/bh, gob_in=gy%bh; u32 block_z=z/bd, z_in=z%bd;
   u64 block_size=512ull*bh*bd;
@@ -62,11 +65,11 @@ void deswizzle(u8* dst, u32 dst_pitch, const u8* src, u32 w_bytes, u32 h, u32 bh
   for(u32 y=0;y<h;y++){
     u8* d=dst+(u64)y*dst_pitch;
     for(u32 x=0;x<w_bytes;x+=16){
-      u64 o=bl_offset(x,y,0,w_bytes,h,bh_log2,0); u32 n=w_bytes-x<16? w_bytes-x : 16; memcpy(d+x,src+o,n); } } }
+      u64 o=bl_offset(x,y,0,w_bytes,h,bh_log2,0); if(o==~0ull) return; u32 n=w_bytes-x<16? w_bytes-x : 16; memcpy(d+x,src+o,n); } } }
 
 void swizzle(u8* dst, const u8* src, u32 src_pitch, u32 w_bytes, u32 h, u32 bh_log2){
   for(u32 y=0;y<h;y++){ const u8* s=src+(u64)y*src_pitch;
-    for(u32 x=0;x<w_bytes;x+=16){ u64 o=bl_offset(x,y,0,w_bytes,h,bh_log2,0); u32 n=w_bytes-x<16? w_bytes-x : 16; memcpy(dst+o,s+x,n); } } }
+    for(u32 x=0;x<w_bytes;x+=16){ u64 o=bl_offset(x,y,0,w_bytes,h,bh_log2,0); if(o==~0ull) return; u32 n=w_bytes-x<16? w_bytes-x : 16; memcpy(dst+o,s+x,n); } } }
 
 /* ============================================================ puller */
 /* Turing/Ampere engine classes (Switch 2 binds these) run on the Maxwell engines: their methods keep the same
@@ -172,20 +175,21 @@ void i2m_launch(GpuChannel* ch, u32* regs, int base){
 void i2m_data(GpuChannel* ch, u32 v){
   if(ch->i2m_pos>=ch->i2m_len) return;
   u32 n=ch->i2m_len-ch->i2m_pos; if(n>4) n=4; memcpy(ch->i2m_buf+ch->i2m_pos,&v,n);
+  int ok=1;
   int plain=i2m_plain(ch);
-  if(plain) gmem_write(ch->i2m_addr+ch->i2m_pos,&v,n);   /* plain uploads land word by word, like the hardware's */
+  if(plain && gmem_write(ch->i2m_addr+ch->i2m_pos,&v,n)<0) ok=0;   /* plain uploads land word by word, like the hardware's */
   ch->i2m_pos+=n;
   if(ch->i2m_pos>=ch->i2m_len){
     if(ch->i2m_linear || (ch->i2m_lines<=1 && !ch->i2m_dw)){   /* single line, no surface: plain copy */
       if(plain) {}
-      else for(u32 y=0;y<ch->i2m_lines;y++) gmem_write(ch->i2m_addr+(u64)y*ch->i2m_pitch,ch->i2m_buf+(u64)y*ch->i2m_w,ch->i2m_w);
-      gpu_mem_written(ch->i2m_addr,ch->i2m_lines>1 && ch->i2m_pitch? (u64)ch->i2m_pitch*ch->i2m_lines : ch->i2m_len); }
+      else for(u32 y=0;y<ch->i2m_lines;y++) if(gmem_write(ch->i2m_addr+(u64)y*ch->i2m_pitch,ch->i2m_buf+(u64)y*ch->i2m_w,ch->i2m_w)<0) ok=0;
+      if(ok) gpu_mem_written(ch->i2m_addr,ch->i2m_lines>1 && ch->i2m_pitch? (u64)ch->i2m_pitch*ch->i2m_lines : ch->i2m_len); }
     else { /* bl dst */
       u32 w=ch->i2m_w, h=ch->i2m_lines? ch->i2m_lines : 1; u32 wb=ch->i2m_dw? ch->i2m_dw : w, hh=ch->i2m_dh? ch->i2m_dh : h;
       u64 hi=0;
       for(u32 y=0;y<h;y++) for(u32 x=0;x<w;){ u32 xb=ch->i2m_x+x, n=16-(xb&15); if(n>w-x) n=w-x;
-        u64 o=bl_offset(xb,ch->i2m_y+y,ch->i2m_z,wb,hh,ch->i2m_bh,ch->i2m_bd); gmem_write(ch->i2m_addr+o,ch->i2m_buf+(u64)y*w+x,n); if(o+n>hi) hi=o+n; x+=n; }
-      gpu_mem_written(ch->i2m_addr,hi); }
+        u64 o=bl_offset(xb,ch->i2m_y+y,ch->i2m_z,wb,hh,ch->i2m_bh,ch->i2m_bd); if(o==~0ull || o>UINT64_MAX-n){ ok=0; break; } if(gmem_write(ch->i2m_addr+o,ch->i2m_buf+(u64)y*w+x,n)<0) ok=0; if(o+n>hi) hi=o+n; x+=n; }
+      if(ok) gpu_mem_written(ch->i2m_addr,hi); }
   }
 }
 
@@ -268,7 +272,7 @@ void gpu_submit_now(u64* e, u32 n, u32 channel){
     if(!words) continue;
     u32* buf=(u32*)gmem_ptr(va,(u64)words*4);
     if(buf) run_pushbuffer(ch,buf,words);
-    else { u32* tmp=malloc((u64)words*4); gmem_read(va,tmp,(u64)words*4); run_pushbuffer(ch,tmp,words); free(tmp); }
+    else { u32* tmp=malloc((u64)words*4); if(!tmp || gmem_read(va,tmp,(u64)words*4)<0){ WARN("gpu: rejected GPFIFO entry va=%llx words=%u\n",(unsigned long long)va,words); free(tmp); continue; } run_pushbuffer(ch,tmp,words); free(tmp); }
   }
   r3d_pending_flush();
   gpu_flush(ch);
@@ -306,7 +310,7 @@ static int chan_pump(GpuChannel* ch){
       u32* buf=(u32*)gmem_ptr(va,(u64)words*4); u32 used;
       t_defer=1;
       if(buf) used=run_pushbuffer(ch,buf+s->i,words-s->i);
-      else { u32* tmp=malloc((u64)(words-s->i)*4); gmem_read(va+(u64)s->i*4,tmp,(u64)(words-s->i)*4); used=run_pushbuffer(ch,tmp,words-s->i); free(tmp); }
+      else { u32* tmp=malloc((u64)(words-s->i)*4); if(!tmp || gmem_read(va+(u64)s->i*4,tmp,(u64)(words-s->i)*4)<0){ WARN("gpu: dropping unreadable GPFIFO entry va=%llx words=%u\n",(unsigned long long)(va+(u64)s->i*4),words-s->i); free(tmp); s->incs=0; s->k=s->n; break; } used=run_pushbuffer(ch,tmp,words-s->i); free(tmp); }
       t_defer=0;
       s->i+=used;
       if(ch->stop){ ch->stop=0; r3d_pending_flush(); gpu_flush(ch); return 1; } }

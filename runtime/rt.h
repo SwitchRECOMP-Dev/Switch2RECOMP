@@ -131,6 +131,9 @@ int  mem_map(u64 addr, u64 size, u32 state, u32 perm);           /* 0 ok */
 int  mem_unmap(u64 addr, u64 size);
 int  mem_is_free(u64 addr, u64 size);
 void mem_query(u64 addr, MemBlock* out);
+int  guest_range_valid(u64 addr, u64 size);
+int  guest_span_readable(u64 addr, u64 size, u64 alignment);
+int  guest_span_writable(u64 addr, u64 size, u64 alignment);
 int  mem_set_state(u64 addr, u64 size, u32 state, u32 perm);
 int  mem_set_attr(u64 addr, u64 size, u32 mask, u32 attr);
 u64  mem_find_free(u64 lo, u64 hi, u64 size, u64 align);

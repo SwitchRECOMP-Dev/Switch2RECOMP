@@ -6,6 +6,7 @@
 #include "audio.h"
 #include <math.h>
 
+extern int ipc_warn_once(const char*, u32);
 KShmem* kshmem_new(u64 size, const char* name);
 u8* kshmem_ptr(KShmem* s);
 
@@ -1158,7 +1159,10 @@ void svc_core_init(void){
   pm_init(&g_aout_lk);
   /* the runtime keeps signaling these, so we hold a reference and a game closing its handles can't free them */
   kobj_ref(&g_msg_event->o); kobj_ref(&g_launch_ev->o); kobj_ref(&g_res_ev->o); kobj_ref(&g_opmode_ev->o); kobj_ref(&g_aud_ev->o);
-  plat_thread(audio_clock,NULL,64*1024);
+  /* glibc accounts for the runtime's static TLS in each pthread's stack.  The
+     shader diagnostic ring alone is 128 KiB, so the old 64 KiB request fails
+     with EINVAL on Linux and leaves audio waiting forever for its clock event. */
+  if(plat_thread(audio_clock,NULL,1u<<20)) WARN("audio: clock thread unavailable\n");
   if(plat_thread(aout_clock,NULL,256*1024)) WARN("audout: timer thread unavailable, using frontend playback pump\n");
   am_push_msg(0xF);          /* FocusStateChanged */
   /* ChangeIntoForeground: the app is in the foreground now. newer SDKs wait for this before they create the
