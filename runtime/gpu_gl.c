@@ -2424,7 +2424,10 @@ static void bind_textures(GpuChannel* ch, int stage, Sh* s, GLuint prog){
     /* TIC swizzle */
     if(!zc_id && t && (t->target==want || (t->view && t->view_target==want))){ static const GLint sw[8]={GL_ZERO,GL_ZERO,GL_RED,GL_GREEN,GL_BLUE,GL_ALPHA,GL_ONE,GL_ONE};
       GLint m[4]={sw[(tic[0]>>19)&7],sw[(tic[0]>>22)&7],sw[(tic[0]>>25)&7],sw[(tic[0]>>28)&7]};
-      if((t->fkey&0x7F)==0x73) m[3]=GL_ONE; /* RGBX's padding component is opaque */
+      /* RGBX's padding component is opaque. the format comes from the TIC: an RT's fkey holds its RT format, and
+         R8 (0xF3) & 0x7F is 0x73 too, so SMO's R8 HUD masks (1,1,1,R) read as 1,1,1,1 (white boxes for the coin
+         and moon counters) */
+      if((tic[0]&0x7F)==0x73) m[3]=GL_ONE;
       /* RTs: only swizzles with constant 0/1 get applied (like an R8 HUD mask read as 1,1,1,R). pure reorders are
          left alone since the RT format already has the host order */
       /* RTs: the TIC swizzle is in memory component order but the GL texture is in logical order, so only RTs
